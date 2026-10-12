@@ -1,0 +1,10 @@
+<Project>
+  <!-- Patch Microsoft.Bcl.Memory (GHSA-73j8-2gch-69rq) without modifying the pinned submodule.
+       ImageSharp remains upstream-pinned; see README.md for the accepted advisory/licensing limitation. -->
+  <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' == 'true'">
+    <PackageReference Include="Microsoft.Bcl.Memory" VersionOverride="9.0.14" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' != 'true'">
+    <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.14" />
+  </ItemGroup>
+</Project>

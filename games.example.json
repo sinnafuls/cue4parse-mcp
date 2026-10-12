@@ -1,0 +1,32 @@
+{
+  // Copy to games.json (gitignored) and fill in. Comments and trailing commas are allowed.
+
+  // Relative paths resolve against this file's directory. Forward slashes work on Windows.
+  // Exports go to <outDir arg> | <game.outputDir> | <defaultOutputDir>/<game id>
+  "defaultOutputDir": "exports",
+
+  // Optional: reuse existing native DLLs. Null downloads them into %LOCALAPPDATA%/Cue4ParseMcp.
+  "oodlePath": null,
+  "zlibPath": null,
+
+  "games": {
+    "valorant": {
+      "displayName": "VALORANT",
+      "paksDir": "C:/Riot Games/VALORANT/live/ShooterGame/Content/Paks",
+      "ueVersion": "GAME_Valorant",
+      // Endpoints are tried first so patches are picked up automatically; aesKey/mappings are fallbacks.
+      "aesUrl": "https://uedb.dev/svc/api/v1/valorant/aes",
+      "mappingsUrl": "https://uedb.dev/svc/api/v1/valorant/mappings",
+      "aesKey": null,
+      "mappings": null
+    },
+    "dbd": {
+      "displayName": "Dead by Daylight",
+      "paksDir": "C:/Program Files (x86)/Steam/steamapps/common/Dead by Daylight/DeadByDaylight/Content/Paks",
+      "ueVersion": "GAME_DeadByDaylight",
+      "aesKey": "0x...",
+      // DbD has no public mappings endpoint: dump a .usmap for the current build (e.g. Dumper-7).
+      "mappings": "C:/Dumper-7/current-build/Mappings/current-build.usmap"
+    }
+  }
+}

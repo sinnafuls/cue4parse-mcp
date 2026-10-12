@@ -1,0 +1,26 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+sixlabors.lic
+.omc/
+
+# Local config holds AES keys and machine paths - see games.example.json
+games.json
+
+# Default export / cache locations
+exports/
+.cache/
+artifacts/
+*.log
+*.part
+
+# Game data, mappings, and exported assets are never source.
+*.pak
+*.utoc
+*.ucas
+*.usmap
+*.uasset
+*.uexp
+*.ubulk

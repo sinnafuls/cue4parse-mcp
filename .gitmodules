@@ -1,0 +1,3 @@
+[submodule "lib/CUE4Parse"]
+	path = lib/CUE4Parse
+	url = https://github.com/FabianFG/CUE4Parse.git

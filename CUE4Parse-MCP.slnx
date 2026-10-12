@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/lib/">
+    <Project Path="lib/CUE4Parse/CUE4Parse/CUE4Parse.csproj" />
+    <Project Path="lib/CUE4Parse/CUE4Parse-Conversion/CUE4Parse-Conversion.csproj" />
+  </Folder>
+  <Project Path="src/Cue4ParseMcp/Cue4ParseMcp.csproj" />
+</Solution>
