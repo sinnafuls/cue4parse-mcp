@@ -2,18 +2,16 @@
 
 An MCP stdio server and command-line tool for searching, inspecting, and exporting Unreal Engine assets directly from local game archives. Uses [CUE4Parse](https://github.com/FabianFG/CUE4Parse), the parsing library behind FModel; no FModel installation or UI automation is required.
 
-**Supported deployment target: Windows x64 with .NET 10.** Other platforms have not been verified. The server reads game files on disk, downloads configured keys/mappings and native decompression libraries, and writes exports/cache files. It does not attach to the running game. Use only assets you are authorized to access; game terms and asset copyrights still apply. Repacking or using modified assets in a game is outside this project's scope.
+**Supported deployment target: Windows x64.** Release ZIPs include the .NET 10 runtime and native animation DLL; no separate .NET installation is required. Source builds need the .NET 10 SDK. Other platforms have not been verified. The server reads game files on disk, downloads configured keys/mappings and native decompression libraries, and writes exports/cache files. It does not attach to the running game. Use only assets you are authorized to access; game terms and asset copyrights still apply. Repacking or using modified assets in a game is outside this project's scope.
 
 **Known dependency limitation:** the initial deployment retains CUE4Parse's ImageSharp 3.1.12 with documented security advisories. See [dependency security](#dependency-security) before building or distributing it.
 
 ## Quick start
 
-Install [Git](https://git-scm.com/downloads), the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), [CMake](https://cmake.org/download/), and Visual Studio 2022 Build Tools with **Desktop development with C++** for native animation support. Then run in PowerShell:
+Download the Windows x64 ZIP from [Releases](https://github.com/sinnafuls/ceu4parse-mcp/releases/latest). Extract **all files** to a permanent folder, for example `C:/Tools/Cue4ParseMcp`; do not run from inside the ZIP or move only the executable.
 
 ```powershell
-git clone --recurse-submodules https://github.com/sinnafuls/ceu4parse-mcp.git
-Set-Location ceu4parse-mcp
-dotnet publish src/Cue4ParseMcp/Cue4ParseMcp.csproj -c Release -o artifacts/server
+Set-Location C:/Tools/Cue4ParseMcp
 Copy-Item games.example.json games.json
 notepad games.json
 ```
@@ -23,17 +21,17 @@ Edit your game's `paksDir`, AES key/endpoint, and mappings path/endpoint. Remove
 Verify configuration and mounting before registering an MCP client:
 
 ```powershell
-.\artifacts\server\Cue4ParseMcp.exe help
-.\artifacts\server\Cue4ParseMcp.exe load valorant --config "$PWD/games.json"
+.\Cue4ParseMcp.exe help
+.\Cue4ParseMcp.exe load valorant --config "$PWD/games.json"
 ```
 
 Register with Claude Code, using absolute paths so the client's working directory does not matter:
 
 ```powershell
-claude mcp add cue4parse --scope user --transport stdio -- "$PWD/artifacts/server/Cue4ParseMcp.exe" --config "$PWD/games.json"
+claude mcp add cue4parse --scope user --transport stdio -- "$PWD/Cue4ParseMcp.exe" --config "$PWD/games.json"
 ```
 
-Restart the client and call `list_games`. For native-free builds, other MCP clients, configuration details, and troubleshooting, see the [installation guide](docs/INSTALL.md).
+Restart the client and call `list_games`. For source builds, other MCP clients, configuration details, checksum verification, and troubleshooting, see the [installation guide](docs/INSTALL.md).
 
 ## MCP tools
 
@@ -63,12 +61,12 @@ Exports preserve in-game folders beneath `outDir`, the game's `outputDir`, or `<
 ## CLI examples
 
 ```powershell
-.\artifacts\server\Cue4ParseMcp.exe search valorant sarge --type SkeletalMesh --limit 10
-.\artifacts\server\Cue4ParseMcp.exe ls valorant /Game/Characters
-.\artifacts\server\Cue4ParseMcp.exe inspect valorant "/Game/path/from/search" --props
-.\artifacts\server\Cue4ParseMcp.exe export-mesh valorant "path/from/search" --format gltf --out D:/Exports
-.\artifacts\server\Cue4ParseMcp.exe export-textures valorant "path/from/search" --format png --out D:/Exports
-.\artifacts\server\Cue4ParseMcp.exe export-anim valorant "path/from/search" --format psa --out D:/Exports
+.\Cue4ParseMcp.exe search valorant sarge --type SkeletalMesh --limit 10
+.\Cue4ParseMcp.exe ls valorant /Game/Characters
+.\Cue4ParseMcp.exe inspect valorant "/Game/path/from/search" --props
+.\Cue4ParseMcp.exe export-mesh valorant "path/from/search" --format gltf --out D:/Exports
+.\Cue4ParseMcp.exe export-textures valorant "path/from/search" --format png --out D:/Exports
+.\Cue4ParseMcp.exe export-anim valorant "path/from/search" --format psa --out D:/Exports
 ```
 
 Use an actual asset path returned by `search`, not the illustrative `path/from/search`. `--config PATH` selects configuration explicitly. CLI results are JSON on stdout; logs go to stderr. Set `CUE4PARSE_MCP_LOG_LEVEL` to `Debug`, `Information`, or `Warning` to change verbosity. Running without a command starts the MCP stdio server, not an interactive prompt.
@@ -85,6 +83,8 @@ lib/CUE4Parse/         pinned upstream submodule (including conversion/native co
 docs/INSTALL.md       installation, client setup, troubleshooting
 games.example.json    safe configuration template
 Directory.Build.targets  patched transitive dependency override
+scripts/Package-Release.ps1  self-contained publish, ZIP packaging, extracted-bundle smoke
+.github/workflows/    master build artifacts and version-tagged GitHub Releases
 ```
 
 The submodule is pinned to a reviewed commit; cloning does not automatically fetch newer parsing behavior. To intentionally update it:
@@ -97,6 +97,25 @@ dotnet build CUE4Parse-MCP.slnx -c Release
 ```
 
 Verify mounting, search, inspection, and exports against your current game build, then commit the updated submodule pointer. Game patches may also require new AES keys and matching `.usmap` files. See [CHANGELOG.md](CHANGELOG.md) for project changes. CUE4Parse retains its upstream Apache-2.0 license and notices.
+
+### Publishing a release
+
+Add the version's notes to `CHANGELOG.md`, commit and push the changes to `master`, then create and push a stable version tag:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Use a **new** `vMAJOR.MINOR.PATCH` tag for each release; never move a published tag. The release workflow derives the executable's version from the tag, publishes self-contained `win-x64` without trimming/single-file bundling, includes the config template, docs, and license notices, and smoke-checks the extracted ZIP. Only then does it create a GitHub Release with the ZIP and a `.sha256` checksum. Ordinary `master` pushes still produce CI artifacts, not releases.
+
+To run identical packaging locally from a source checkout with native build tools installed:
+
+```powershell
+pwsh -File scripts/Package-Release.ps1 -Version 1.0.0
+```
+
+The version must have a changelog section. Output is under `artifacts/releases/`; an existing ZIP is not overwritten.
 
 ## Dependency security
 

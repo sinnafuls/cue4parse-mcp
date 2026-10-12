@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validate version tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+)$') {
+            throw 'Release tags must use vMAJOR.MINOR.PATCH, for example v1.0.0.'
+          }
+          "RELEASE_VERSION=$($Matches[1])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Publish, package, and smoke-check extracted ZIP
+        shell: pwsh
+        run: ./scripts/Package-Release.ps1 -Version $env:RELEASE_VERSION
+      - name: Create GitHub Release with ZIP and checksum
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = "artifacts/releases/cue4parse-mcp-$env:RELEASE_VERSION-windows-x64.zip"
+          gh release create $env:GITHUB_REF_NAME $zip "$zip.sha256" `
+            --repo $env:GITHUB_REPOSITORY --verify-tag --latest `
+            --title "CUE4Parse-MCP $env:GITHUB_REF_NAME" `
+            --notes-file artifacts/releases/RELEASE-NOTES.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

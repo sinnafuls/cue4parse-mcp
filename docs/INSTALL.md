@@ -1,42 +1,55 @@
 # Installation and configuration
 
-## 1. Prerequisites
+## 1. Choose your installation
 
-This guide targets **Windows x64**. You need local game archives you are authorized to read, Git, and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Check both commands in a new PowerShell terminal:
+This guide targets **Windows x64** and local game archives you are authorized to read.
+
+### Prebuilt release ZIP (recommended)
+
+1. Open [the latest release](https://github.com/sinnafuls/ceu4parse-mcp/releases/latest) and download `cue4parse-mcp-<version>-windows-x64.zip`.
+2. Extract **all files** to a permanent folder such as `C:/Tools/Cue4ParseMcp`.
+3. Open PowerShell in that folder and set the executable path:
+
+```powershell
+Set-Location C:/Tools/Cue4ParseMcp
+$server = (Resolve-Path ./Cue4ParseMcp.exe).Path
+```
+
+The ZIP includes the .NET runtime, native animation DLL, safe config template, this guide, and dependency/license notices. No Git, .NET installation, CMake, or Visual Studio is needed to run it. Configured Oodle/zlib libraries and mappings may still download on first game load; see offline setup below.
+
+Optional integrity check: download the matching `.zip.sha256` file and compare its first field with PowerShell's `Get-FileHash` result before extracting. For example, using the downloaded version's filename:
+
+```powershell
+Get-FileHash ./cue4parse-mcp-1.0.0-windows-x64.zip -Algorithm SHA256
+Get-Content ./cue4parse-mcp-1.0.0-windows-x64.zip.sha256
+```
+
+Keep your existing `games.json` and export/cache directories when upgrading. Extract a new version into a separate folder, copy your config, check relative paths, and update the client's executable/config paths. Do not blindly overwrite the template over your config.
+
+### Build from source
+
+Install Git and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). For ACL animation support, also install [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/) with **Desktop development with C++**, an x64 MSVC toolchain and Windows SDK, plus [CMake](https://cmake.org/download/) on `PATH`.
 
 ```powershell
 git --version
 dotnet --version
-```
-
-For ACL-compressed animation export, also install:
-
-- [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/), with **Desktop development with C++**, an x64 MSVC toolchain, and a Windows SDK.
-- [CMake](https://cmake.org/download/), added to `PATH`.
-
-CUE4Parse's build invokes CMake to build `CUE4Parse-Natives.dll`. A native configure failure can leave the managed build usable, but a later native compilation failure can fail the build. Do not assume a successful managed-only build provides animation support.
-
-## 2. Clone and build
-
-```powershell
 git clone --recurse-submodules https://github.com/sinnafuls/ceu4parse-mcp.git
 Set-Location ceu4parse-mcp
 dotnet publish src/Cue4ParseMcp/Cue4ParseMcp.csproj -c Release -o artifacts/server
+$server = (Resolve-Path ./artifacts/server/Cue4ParseMcp.exe).Path
 ```
 
-Already cloned without submodules? Run `git submodule update --init --recursive` in the repository before building.
+Already cloned without submodules? Run `git submodule update --init --recursive` before building. The source-build command above is framework-dependent: the machine running it needs the .NET 10 runtime (the SDK includes it). Keep the entire output directory.
 
-The executable is `artifacts/server/Cue4ParseMcp.exe`. Keep the **entire output directory**, including DLLs and runtime/configuration files. This is framework-dependent: the machine running it needs the .NET 10 runtime (the SDK already includes it).
-
-If you deliberately do not need ACL animation decompression, skip the native build explicitly:
+CUE4Parse invokes CMake to build `CUE4Parse-Natives.dll`. A native configure failure can leave the managed build usable, but a later native compilation failure can fail the build. To deliberately skip native support when ACL animation export is not needed:
 
 ```powershell
 dotnet publish src/Cue4ParseMcp/Cue4ParseMcp.csproj -c Release -o artifacts/server -p:CUE4PARSE_SKIP_NATIVE=true
 ```
 
-Do not reuse a previous native-enabled publish directory when checking what a native-free build contains. Standard solution build: `dotnet build CUE4Parse-MCP.slnx -c Release`.
+Do not reuse a previous native-enabled publish directory when checking native-free output. Standard solution build: `dotnet build CUE4Parse-MCP.slnx -c Release`. To produce the same self-contained ZIP as the release workflow, use `pwsh -File scripts/Package-Release.ps1 -Version 1.0.0`; native build tools and matching changelog notes are required.
 
-## 3. Configure games
+## 2. Configure games
 
 ```powershell
 Copy-Item games.example.json games.json
@@ -114,24 +127,24 @@ The endpoint URLs in the Valorant template are third-party services, not guarant
 
 **Mappings must match the game build.** DbD users need a current-build `.usmap` (for example, generated with Dumper-7). Mounting archives successfully does not prove that mappings are compatible; inspect and export an asset too. Only configure trusted endpoints and native DLLs.
 
-## 4. Verify locally
+## 3. Verify locally
 
 ```powershell
-.\artifacts\server\Cue4ParseMcp.exe help
-.\artifacts\server\Cue4ParseMcp.exe load valorant --config "$PWD/games.json"
-.\artifacts\server\Cue4ParseMcp.exe search valorant sarge --type SkeletalMesh --limit 5 --config "$PWD/games.json"
+& $server help
+& $server load valorant --config "$PWD/games.json"
+& $server search valorant sarge --type SkeletalMesh --limit 5 --config "$PWD/games.json"
 ```
 
 Replace `valorant` and the query with your game and desired asset. Check mount counts, warnings, and search notes. Use a returned path for `inspect`, then an appropriate export command from the [README](../README.md). Check the export report's `failures` and verify the resulting file can be opened by your consuming application.
 
-## 5. Register an MCP client
+## 4. Register an MCP client
 
 ### Claude Code
 
-From the repository directory:
+From the directory containing your `games.json`, using `$server` set during installation:
 
 ```powershell
-claude mcp add cue4parse --scope user --transport stdio -- "$PWD/artifacts/server/Cue4ParseMcp.exe" --config "$PWD/games.json"
+claude mcp add cue4parse --scope user --transport stdio -- "$server" --config "$PWD/games.json"
 claude mcp get cue4parse
 ```
 
@@ -145,8 +158,8 @@ Merge this entry into your client's MCP configuration; replace paths with your a
 {
   "mcpServers": {
     "cue4parse": {
-      "command": "C:/Tools/ceu4parse-mcp/artifacts/server/Cue4ParseMcp.exe",
-      "args": ["--config", "C:/Tools/ceu4parse-mcp/games.json"]
+      "command": "C:/Tools/Cue4ParseMcp/Cue4ParseMcp.exe",
+      "args": ["--config", "C:/Tools/Cue4ParseMcp/games.json"]
     }
   }
 }
@@ -158,7 +171,7 @@ Claude Desktop on Windows uses `%APPDATA%/Claude/claude_desktop_config.json`. Ot
 
 | Symptom | Action |
 |---|---|
-| .NET target/runtime not found | Install the .NET **10** SDK to build, or runtime to run a published framework-dependent app; reopen your terminal |
+| .NET target/runtime not found | Source builds need the .NET **10** SDK/runtime; release ZIPs include the runtime, so re-extract the entire bundle if files are missing |
 | CUE4Parse project/submodule missing | Run `git submodule update --init --recursive` |
 | CMake/MSVC failure | Install CMake and the C++ build workload, or deliberately use `-p:CUE4PARSE_SKIP_NATIVE=true` if ACL animations are not needed |
 | `No games.json found` | Pass `--config` with an absolute path; verify the file exists |
@@ -166,7 +179,7 @@ Claude Desktop on Windows uses `%APPDATA%/Claude/claude_desktop_config.json`. Ot
 | Paks directory not found | Set `paksDir` to the installed game's archive directory |
 | Containers remain encrypted/unmounted | Check keys and game version; inspect load warnings. Not every unmounted auxiliary container indicates an AES failure |
 | Mount works, inspect/export fails to deserialize | Obtain matching mappings, then consider updating CUE4Parse for game-specific parsing fixes |
-| ACL/native DLL load failure | Rebuild with the native prerequisites and ensure `CUE4Parse-Natives.dll` is beside the executable |
+| ACL/native DLL load failure | For releases, re-extract the full ZIP; for source builds, rebuild with native prerequisites. `CUE4Parse-Natives.dll` must be beside the executable |
 | Download fails/offline setup | Supply existing trusted `oodlePath`, `zlibPath`, `aesKey`, and `mappings`; omit remote endpoints to avoid requests |
 | Type search is truncated | Narrow the query and use `under`; the type scan is capped |
 | ImageSharp `NU1902` / `NU1903` warnings | Known, retained advisories; read the [dependency security disclosure](../README.md#dependency-security). They are not suppressed, and the patched 4.1.2 release needs a Six Labors license |
