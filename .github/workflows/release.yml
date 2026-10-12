@@ -27,6 +27,9 @@ jobs:
             throw 'Release tags must use vMAJOR.MINOR.PATCH, for example v1.0.0.'
           }
           "RELEASE_VERSION=$($Matches[1])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Verify encrypted archive regressions
+        shell: pwsh
+        run: dotnet test tests/Cue4ParseMcp.Tests/Cue4ParseMcp.Tests.csproj -c Release -p:CUE4PARSE_SKIP_NATIVE=true
       - name: Publish, package, and smoke-check extracted ZIP
         shell: pwsh
         run: ./scripts/Package-Release.ps1 -Version $env:RELEASE_VERSION

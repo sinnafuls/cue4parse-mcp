@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 — 2026-10-12
+
+- Fixed AES key assignment for paks with unencrypted indexes and encrypted file contents, including the reported Sea of Thieves version-3 layout. Keys are submitted before the initial unencrypted mount, so those readers receive their matching keys before `PostMount()` and asset reads.
+- Added generated AES-256-ECB pak regressions covering uncompressed, zlib and Sea of Thieves LZ4 payloads, encrypted indexes, dynamic GUID keys, and missing-key/unencrypted controls. Build and release workflows run the suite.
+- Clarified that `load_game(reload: true)` reloads archives and configured endpoints, not `games.json`. Restart the MCP server after changing keys or other configuration values; a new CLI invocation reads the updated file.
+- Existing ImageSharp security advisories remain disclosed and unsuppressed.
+
+Verified with nine isolated generated-pak tests and the self-contained 1.0.1 ZIP against real Valorant archives: mounting, typed search, inspection, glTF mesh, eight PNG textures, PSA animation, and reload. Full Sea of Thieves archive/export verification requires the reporter's installed game files; no game files or real AES keys are included in the fixtures.
+
 ## 1.0.0 — 2026-10-12
 
 - Initial public CUE4Parse-MCP stdio server and CLI, with eight asset tools and a pinned CUE4Parse submodule.

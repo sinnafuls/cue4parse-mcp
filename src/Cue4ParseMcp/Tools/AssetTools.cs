@@ -30,7 +30,7 @@ public sealed class AssetTools(GameManager games, AssetOps ops)
         "Takes 5-60s on first load; later tools reuse the mounted game. Other tools auto-load if needed.")]
     public async Task<LoadSummary> LoadGame(
         [Description("Game id from games.json, e.g. valorant or dbd.")] string game,
-        [Description("Re-mount even if already loaded (e.g. after a game patch).")] bool reload = false,
+        [Description("Re-mount using the startup configuration (e.g. after a game patch). Restart the server after editing games.json.")] bool reload = false,
         CancellationToken ct = default)
     {
         return await games.LoadAsync(game, reload, ct);

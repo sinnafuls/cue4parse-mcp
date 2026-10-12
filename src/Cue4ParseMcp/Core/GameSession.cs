@@ -117,18 +117,19 @@ public sealed class GameSession
 
             provider.Initialize();
             ct.ThrowIfCancellationRequested();
-            await provider.MountAsync(); // unencrypted containers; encrypted ones mount when their key is submitted
-            ct.ThrowIfCancellationRequested();
 
             var keys = new List<KeyValuePair<FGuid, FAesKey>>();
             if (aes.MainKey is { Length: > 0 })
                 AddKey(keys, warnings, null, aes.MainKey);
             foreach (var (guid, key) in aes.DynamicKeys)
                 AddKey(keys, warnings, guid, key);
+            // Keyed readers must mount first: a plain pak index can still contain encrypted payloads.
             if (keys.Count > 0)
                 await provider.SubmitKeysAsync(keys);
             else
                 warnings.Add("No usable AES key: encrypted containers will stay unmounted.");
+            ct.ThrowIfCancellationRequested();
+            await provider.MountAsync(); // Remaining unencrypted containers without configured keys.
             ct.ThrowIfCancellationRequested();
 
             provider.PostMount();

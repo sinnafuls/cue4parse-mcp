@@ -48,6 +48,8 @@ Restart the client and call `list_games`. For source builds, other MCP clients, 
 
 Asset tools auto-load their game. Pass `game` explicitly when using multiple games; otherwise the last-loaded game is selected (or the sole configured game). A typed search reads package headers and caps scanning at 20,000 name matches; use `under` and narrower queries when results are truncated.
 
+Configuration is read once when the server starts. `load_game(reload: true)` re-mounts archives and re-fetches configured endpoints, but does not re-read `games.json`. Restart the MCP server after editing keys, paths, or other configuration values.
+
 Formats:
 
 - Mesh: `psk` (default; `.psk`/`.pskx`), `gltf` (binary `.glb`), `ueformat`, `usd`. LODs: `highest` (default), `lowest`, `all`.
@@ -80,6 +82,7 @@ src/Cue4ParseMcp/
   Core/               game lifecycle, resource loading, asset operations
   Tools/              MCP tool declarations
 lib/CUE4Parse/         pinned upstream submodule (including conversion/native code)
+tests/Cue4ParseMcp.Tests/  generated encrypted-pak regression fixtures
 docs/INSTALL.md       installation, client setup, troubleshooting
 games.example.json    safe configuration template
 Directory.Build.targets  patched transitive dependency override
@@ -103,8 +106,8 @@ Verify mounting, search, inspection, and exports against your current game build
 Add the version's notes to `CHANGELOG.md`, commit and push the changes to `master`, then create and push a stable version tag:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 Use a **new** `vMAJOR.MINOR.PATCH` tag for each release; never move a published tag. The release workflow derives the executable's version from the tag, publishes self-contained `win-x64` without trimming/single-file bundling, includes the config template, docs, and license notices, and smoke-checks the extracted ZIP. Only then does it create a GitHub Release with the ZIP and a `.sha256` checksum. Ordinary `master` pushes still produce CI artifacts, not releases.
@@ -112,10 +115,12 @@ Use a **new** `vMAJOR.MINOR.PATCH` tag for each release; never move a published 
 To run identical packaging locally from a source checkout with native build tools installed:
 
 ```powershell
-pwsh -File scripts/Package-Release.ps1 -Version 1.0.0
+pwsh -File scripts/Package-Release.ps1 -Version 1.0.1
 ```
 
 The version must have a changelog section. Output is under `artifacts/releases/`; an existing ZIP is not overwritten.
+
+Run the generated encrypted-pak regression suite with `dotnet test tests/Cue4ParseMcp.Tests/Cue4ParseMcp.Tests.csproj -c Release -p:CUE4PARSE_SKIP_NATIVE=true`. The fixtures are generated in temporary directories and require no game installation, real keys, native codecs, or endpoint access.
 
 ## Dependency security
 

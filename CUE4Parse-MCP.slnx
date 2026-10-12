@@ -4,4 +4,7 @@
     <Project Path="lib/CUE4Parse/CUE4Parse-Conversion/CUE4Parse-Conversion.csproj" />
   </Folder>
   <Project Path="src/Cue4ParseMcp/Cue4ParseMcp.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/Cue4ParseMcp.Tests/Cue4ParseMcp.Tests.csproj" />
+  </Folder>
 </Solution>
