@@ -6,7 +6,7 @@ This guide targets **Windows x64** and local game archives you are authorized to
 
 ### Prebuilt release ZIP (recommended)
 
-1. Open [the latest release](https://github.com/sinnafuls/ceu4parse-mcp/releases/latest) and download `cue4parse-mcp-<version>-windows-x64.zip`.
+1. Open [the latest release](https://github.com/sinnafuls/cue4parse-mcp/releases/latest) and download `cue4parse-mcp-<version>-windows-x64.zip`.
 2. Extract **all files** to a permanent folder such as `C:/Tools/Cue4ParseMcp`.
 3. Open PowerShell in that folder and set the executable path:
 
@@ -33,8 +33,8 @@ Install Git and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/1
 ```powershell
 git --version
 dotnet --version
-git clone --recurse-submodules https://github.com/sinnafuls/ceu4parse-mcp.git
-Set-Location ceu4parse-mcp
+git clone --recurse-submodules https://github.com/sinnafuls/cue4parse-mcp.git
+Set-Location cue4parse-mcp
 dotnet publish src/Cue4ParseMcp/Cue4ParseMcp.csproj -c Release -o artifacts/server
 $server = (Resolve-Path ./artifacts/server/Cue4ParseMcp.exe).Path
 ```

@@ -8,7 +8,7 @@ An MCP stdio server and command-line tool for searching, inspecting, and exporti
 
 ## Quick start
 
-Download the Windows x64 ZIP from [Releases](https://github.com/sinnafuls/ceu4parse-mcp/releases/latest). Extract **all files** to a permanent folder, for example `C:/Tools/Cue4ParseMcp`; do not run from inside the ZIP or move only the executable.
+Download the Windows x64 ZIP from [Releases](https://github.com/sinnafuls/cue4parse-mcp/releases/latest). Extract **all files** to a permanent folder, for example `C:/Tools/Cue4ParseMcp`; do not run from inside the ZIP or move only the executable.
 
 ```powershell
 Set-Location C:/Tools/Cue4ParseMcp
