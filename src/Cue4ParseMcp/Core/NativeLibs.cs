@@ -1,12 +1,15 @@
 using CUE4Parse.Compression;
+using CUE4Parse_Conversion.Textures.BC;
 using Cue4ParseMcp.Config;
 
 namespace Cue4ParseMcp.Core;
 
-/// <summary>Oodle and zlib-ng are loaded once per process. Missing dlls are downloaded into the cache dir.</summary>
+/// <summary>Oodle, zlib-ng and Detex (BC6/BC7 texture decode) are loaded once per process. Missing dlls are
+/// downloaded (Oodle, zlib-ng) or written from CUE4Parse-Conversion's embedded copy (Detex) into the cache dir.</summary>
 public static class NativeLibs
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
+    private static bool _detex;
 
     /// <summary>
     /// Loads whichever library isn't loaded yet. Failures don't stop a mount (many games use neither); they are
@@ -14,7 +17,7 @@ public static class NativeLibs
     /// </summary>
     public static async Task<IReadOnlyList<string>> EnsureInitializedAsync(AppConfig app, CancellationToken ct)
     {
-        if (OodleHelper.Instance is not null && ZlibHelper.Instance is not null) return [];
+        if (OodleHelper.Instance is not null && ZlibHelper.Instance is not null && _detex) return [];
         var warnings = new List<string>();
 
         await Gate.WaitAsync(ct);
@@ -32,6 +35,26 @@ public static class NativeLibs
             {
                 var zlib = app.ZlibPath is { Length: > 0 } ? app.ZlibPath : Path.Combine(app.ResolvedCacheDir, ZlibHelper.DllName);
                 await TryInitializeAsync("zlib-ng", "zlibPath", zlib, ZlibHelper.InitializeAsync, () => ZlibHelper.Instance is not null, warnings, ct);
+            }
+
+            if (!_detex)
+            {
+                // Without it every BC6H / BC7 texture (most UI icons) fails to export.
+                var detex = Path.Combine(app.ResolvedCacheDir, DetexHelper.DLL_NAME);
+                try
+                {
+                    if (DetexHelper.LoadDll(detex))
+                    {
+                        DetexHelper.Initialize(detex);
+                        _detex = true;
+                    }
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    warnings.Add($"Detex could not be loaded from {detex} ({ex.Message}); BC6H / BC7 textures will fail to export.");
+                }
+                if (!_detex && warnings.Count == 0)
+                    warnings.Add($"Detex could not be written to {detex}; BC6H / BC7 textures will fail to export.");
             }
         }
         finally
