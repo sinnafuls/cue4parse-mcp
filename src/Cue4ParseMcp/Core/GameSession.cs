@@ -130,6 +130,16 @@ public sealed class GameSession
                 warnings.Add("No usable AES key: encrypted containers will stay unmounted.");
             ct.ThrowIfCancellationRequested();
             await provider.MountAsync(); // Remaining unencrypted containers without configured keys.
+            // Old paks (v3, e.g. Sea of Thieves) keep a plain index with encrypted entries:
+            // SubmitKeys only keys readers whose index is encrypted, so give the main key
+            // to every reader that has none, then mount any still unmounted.
+            var mainKey = keys.FirstOrDefault(k => k.Key == new FGuid()).Value;
+            if (mainKey != null)
+            {
+                foreach (var reader in provider.MountedVfs.Concat(provider.UnloadedVfs))
+                    if (reader.AesKey == null) reader.AesKey = mainKey;
+                if (provider.UnloadedVfs.Count > 0) await provider.MountAsync();
+            }
             ct.ThrowIfCancellationRequested();
 
             provider.PostMount();
