@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fixed Windows test cleanup after Detex initialization. Process-global native codecs now use a cache under the test output directory instead of disposable per-pak fixture directories; fixture deletion remains strict.
+
+Verified all nine encrypted-pak regressions and native BC7 decoding of a known-color block. Detex initialization remains enabled.
+
 ## 1.0.1 — 2026-10-12
 
 - Fixed AES key assignment for paks with unencrypted indexes and encrypted file contents, including the reported Sea of Thieves version-3 layout. Keys are submitted before the initial unencrypted mount, so those readers receive their matching keys before `PostMount()` and asset reads.

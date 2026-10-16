@@ -29,7 +29,9 @@ internal sealed class EncryptedPakFixture : IDisposable
         // These formats don't require native codecs. Existing invalid DLLs produce warnings without downloads,
         // keeping the fixture independent of network access and machine-installed decompression libraries.
         File.WriteAllText(native, "No native codec is required by this fixture.");
-        Config = new AppConfig { CacheDir = Path.Combine(_directory, "cache"), OodlePath = native, ZlibPath = native };
+        // Native codecs are process-global and Windows keeps their DLLs locked while loaded.
+        // Give their cache the test output's lifetime, not this disposable pak directory's.
+        Config = new AppConfig { CacheDir = Path.Combine(AppContext.BaseDirectory, "native-cache"), OodlePath = native, ZlibPath = native };
         Config.Games.Add("fixture", new GameConfig
         {
             PaksDir = paks,
