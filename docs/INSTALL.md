@@ -20,8 +20,8 @@ The ZIP includes the .NET runtime, native animation DLL, safe config template, t
 Optional integrity check: download the matching `.zip.sha256` file and compare its first field with PowerShell's `Get-FileHash` result before extracting. For example, using the downloaded version's filename:
 
 ```powershell
-Get-FileHash ./cue4parse-mcp-1.1.0-windows-x64.zip -Algorithm SHA256
-Get-Content ./cue4parse-mcp-1.1.0-windows-x64.zip.sha256
+Get-FileHash ./cue4parse-mcp-1.2.0-windows-x64.zip -Algorithm SHA256
+Get-Content ./cue4parse-mcp-1.2.0-windows-x64.zip.sha256
 ```
 
 Keep your existing `games.json` and export/cache directories when upgrading. Extract a new version into a separate folder, copy your config, check relative paths, and update the client's executable/config paths. Do not blindly overwrite the template over your config.
@@ -47,7 +47,7 @@ CUE4Parse invokes CMake to build `CUE4Parse-Natives.dll`. A native configure fai
 dotnet publish src/Cue4ParseMcp/Cue4ParseMcp.csproj -c Release -o artifacts/server -p:CUE4PARSE_SKIP_NATIVE=true
 ```
 
-Do not reuse a previous native-enabled publish directory when checking native-free output. Standard solution build: `dotnet build CUE4Parse-MCP.slnx -c Release`. To produce the same self-contained ZIP as the release workflow, use `pwsh -File scripts/Package-Release.ps1 -Version 1.1.0`; native build tools and matching changelog notes are required.
+Do not reuse a previous native-enabled publish directory when checking native-free output. Standard solution build: `dotnet build CUE4Parse-MCP.slnx -c Release`. To produce the same self-contained ZIP as the release workflow, use `pwsh -File scripts/Package-Release.ps1 -Version 1.2.0`; native build tools and matching changelog notes are required.
 
 ## 2. Configure games
 
@@ -138,10 +138,12 @@ The endpoint URLs in the Valorant template are third-party services, not guarant
 ```powershell
 & $server help
 & $server load valorant --config "$PWD/games.json"
+& $server diagnose valorant --config "$PWD/games.json"
 & $server search valorant sarge --type SkeletalMesh --limit 5 --config "$PWD/games.json"
+& $server diagnose valorant --probe "path/from/search" --config "$PWD/games.json"
 ```
 
-Replace `valorant` and the query with your game and desired asset. Check mount counts, warnings, and search notes. Use a returned path for `inspect`, then an appropriate export command from the [README](../README.md). Check the export report's `failures` and verify the resulting file can be opened by your consuming application.
+Replace `valorant` and the query with your game and desired asset. Check mount counts, warnings, and search notes. `diagnose` summarizes the selected engine version, mounted and unmounted archives, which containers need keys, mappings, and codec availability; `--probe` with a returned path additionally reads that one asset (see [diagnostics](../README.md#diagnostics)). Use a returned path for `inspect`, then an appropriate export command from the [README](../README.md). Check the export report's `failures` and verify the resulting file can be opened by your consuming application.
 
 ## 4. Register an MCP client
 
@@ -183,12 +185,18 @@ Claude Desktop on Windows uses `%APPDATA%/Claude/claude_desktop_config.json`. Ot
 | `No games.json found` | Pass `--config` with an absolute path; verify the file exists |
 | Invalid escapable character in JSON | Change Windows `\` to `/` or `\\` inside string values |
 | Paks directory not found | Set `paksDir` to the installed game's archive directory |
-| Containers remain encrypted/unmounted | Check keys and game version; inspect load warnings. Not every unmounted auxiliary container indicates an AES failure |
-| Mount works, inspect/export fails to deserialize | Obtain matching mappings, then consider updating CUE4Parse for game-specific parsing fixes |
+| Containers remain encrypted/unmounted | Check keys and game version; inspect load warnings and run `diagnose` to see which encryption GUIDs have no configured key. Not every unmounted auxiliary container indicates an AES failure |
+| Mount works, inspect/export fails to deserialize | Obtain matching mappings, then consider updating CUE4Parse for game-specific parsing fixes. `diagnose --probe <path>` shows which read stage fails |
 | ACL/native DLL load failure | For releases, re-extract the full ZIP; for source builds, rebuild with native prerequisites. `CUE4Parse-Natives.dll` must be beside the executable |
 | Download fails/offline setup | Supply existing trusted `oodlePath`, `zlibPath`, `aesKey`, and `mappings`; omit remote endpoints to avoid requests |
 | v1.0.0 lists assets but reading encrypted entries fails in a plain-index pak | Upgrade to v1.0.1 or later. Older releases read keys at startup and require a restart after config edits; hot-reload builds pick them up on the next call |
 | Type search is truncated | Narrow the query and use `under`; the type scan is capped |
+| `... is a CurveTable, not a DataTable` | `query_table`/`export_table` read only DataTables and their subclasses; use `export_json` for other assets |
+| CSV table export fails on a struct/array cell | CSV holds flat scalar cells only; select scalar `columns` or export `json` |
+| DataTable query fails because its row struct cannot be resolved | The table's row type could not be resolved; obtain mappings matching the game build, then retry |
+| `--filters` JSON rejected in Windows PowerShell 5.1 | It strips embedded double quotes from native arguments; escape them as `\"` or use PowerShell 7.3+ with single-quoted JSON |
+| `start_batch` rejects a preview | Previews expire after 10 minutes and become stale when the game is remounted or its profile/output directory changes; call `preview_batch` again |
+| A CLI batch `jobId` is unknown later | CLI jobs exist only while that command runs; use `batch --run` to wait, or the MCP tools for background jobs |
 | ImageSharp `NU1902` / `NU1903` warnings | Known, retained advisories; read the [dependency security disclosure](../README.md#dependency-security). They are not suppressed, and the patched 4.1.2 release needs a Six Labors license |
 | Client waits when launching executable manually | No command means MCP stdio mode; use `help` or a CLI command instead |
 

@@ -60,13 +60,7 @@ public sealed class AssetOps(GameManager games)
 
     public async Task<ExportReport> ExportAnimAsync(string? game, string path, string format, string? outDir, CancellationToken ct)
     {
-        var meshFormat = format.ToLowerInvariant() switch
-        {
-            "psa" or "actorx" => EMeshFormat.ActorX,
-            "ueformat" or "ueanim" => EMeshFormat.UEFormat,
-            "usd" => EMeshFormat.USD,
-            _ => throw new ArgumentException($"Unsupported animation format '{format}'. Use psa, ueformat or usd.")
-        };
+        var meshFormat = ParseAnimFormat(format);
 
         using var lease = await games.AcquireAsync(game, ct);
         var session = lease.Session;
@@ -76,6 +70,14 @@ public sealed class AssetOps(GameManager games)
 
         return await session.ExportAsync([obj], new ExportOptions(meshFormat: meshFormat), games.ResolveOutputDir(lease, outDir), ct);
     }
+
+    public static EMeshFormat ParseAnimFormat(string format) => format.ToLowerInvariant() switch
+    {
+        "psa" or "actorx" => EMeshFormat.ActorX,
+        "ueformat" or "ueanim" => EMeshFormat.UEFormat,
+        "usd" => EMeshFormat.USD,
+        _ => throw new ArgumentException($"Unsupported animation format '{format}'. Use psa, ueformat or usd.")
+    };
 
     public static EMeshFormat ParseMeshFormat(string format) => format.ToLowerInvariant() switch
     {

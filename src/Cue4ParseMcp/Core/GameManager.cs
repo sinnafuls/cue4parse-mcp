@@ -34,6 +34,27 @@ public sealed class GameManager(AppConfig config) : IDisposable
         return lease.Session.Summary;
     }
 
+    /// <summary>Resolves the configured game an operation would select, without mounting it.</summary>
+    public string ResolveGameId(string? gameId)
+    {
+        lock (_sessions)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            RefreshConfig();
+            return SelectGameId(gameId);
+        }
+    }
+
+    // Called under _sessions after refreshing the configuration.
+    private string SelectGameId(string? gameId)
+    {
+        var id = gameId is { Length: > 0 } ? gameId : _current
+            ?? (_config.Games.Count == 1 ? _config.Games.Keys.First()
+                : throw new InvalidOperationException($"No game loaded. Call load_game first (configured: {string.Join(", ", _config.Games.Keys)})."));
+        if (!_config.Games.ContainsKey(id)) throw UnknownGame(id);
+        return id;
+    }
+
     /// <summary>Holds both the provider and the operation's configuration snapshot until the lease ends.</summary>
     public async Task<GameLease> AcquireAsync(string? gameId, CancellationToken ct)
     {
@@ -42,9 +63,7 @@ public sealed class GameManager(AppConfig config) : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             RefreshConfig();
-            id = gameId is { Length: > 0 } ? gameId : _current
-                ?? (_config.Games.Count == 1 ? _config.Games.Keys.First()
-                    : throw new InvalidOperationException($"No game loaded. Call load_game first (configured: {string.Join(", ", _config.Games.Keys)})."));
+            id = SelectGameId(gameId);
             if (_sessions.TryGetValue(id, out var session))
                 return new GameLease(session, _config);
         }

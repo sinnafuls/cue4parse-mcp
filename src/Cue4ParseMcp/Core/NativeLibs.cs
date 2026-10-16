@@ -9,7 +9,10 @@ namespace Cue4ParseMcp.Core;
 public static class NativeLibs
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    private static bool _detex;
+    private static volatile bool _detex;
+
+    /// <summary>True once Detex (BC6H/BC7 decoding) loaded in this process.</summary>
+    public static bool DetexLoaded => _detex;
 
     /// <summary>
     /// Loads whichever library isn't loaded yet. Failures don't stop a mount (many games use neither); they are

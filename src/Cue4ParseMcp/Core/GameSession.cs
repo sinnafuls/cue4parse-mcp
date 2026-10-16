@@ -54,6 +54,12 @@ public sealed record LoadSummary(
 /// <remarks>Reference counted: the <see cref="GameManager"/> holds one reference and every <see cref="GameLease"/> another.</remarks>
 public sealed class GameSession
 {
+    static GameSession()
+    {
+        // Never export a partially deserialized object as though it were complete.
+        CUE4Parse.Globals.FatalObjectSerializationErrors = true;
+    }
+
     public string Id { get; }
     public GameConfig Config { get; }
     public DefaultFileProvider Provider { get; }
@@ -419,7 +425,7 @@ public sealed class GameSession
         return null;
     }
 
-    private IPackage LoadPackage(string packagePath) =>
+    public IPackage LoadPackage(string packagePath) =>
         Provider.LoadPackage(ResolvePackageFile(packagePath) ?? throw new FileNotFoundException($"Asset not found: {packagePath}"));
 
     /// <summary>Loads the asset's primary object: the named export, else the export matching the package name, else the first top-level export.</summary>
@@ -454,7 +460,8 @@ public sealed class GameSession
     /// <summary>Exports sharing an output folder run one at a time so two meshes with a common texture don't race on the file.</summary>
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> OutputLocks = new(StringComparer.OrdinalIgnoreCase);
 
-    public async Task<ExportReport> ExportAsync(IReadOnlyList<UObject> roots, ExportOptions options, string outDir, CancellationToken ct)
+    public async Task<ExportReport> ExportAsync(IReadOnlyList<UObject> roots, ExportOptions options, string outDir,
+        CancellationToken ct, IProgress<ExportProgress>? progress = null)
     {
         outDir = Path.GetFullPath(outDir);
         Directory.CreateDirectory(outDir);
@@ -462,16 +469,14 @@ public sealed class GameSession
         foreach (var root in roots) session.Add(root);
 
         // Same formula ExporterBase uses for the ObjectPath of a top-level export.
-        var rootPaths = new HashSet<string>(
-            roots.Select(r => Provider.FixPath(r.Owner?.Name ?? r.GetPathName()).SubstringBeforeLast('.') + "." + r.Name),
-            StringComparer.OrdinalIgnoreCase);
+        var rootPaths = new HashSet<string>(roots.Select(ExportObjectPath), StringComparer.OrdinalIgnoreCase);
 
         var gate = OutputLocks.GetOrAdd(outDir, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
         IReadOnlyList<ExportResult> results;
         try
         {
-            results = await session.RunAsync(outDir, options, null, ct);
+            results = await session.RunAsync(outDir, options, progress, ct);
         }
         finally
         {
@@ -504,6 +509,9 @@ public sealed class GameSession
 
         return new ExportReport(outDir, rootFiles, depFiles.Order().ToList(), failures);
     }
+
+    public string ExportObjectPath(UObject obj) =>
+        Provider.FixPath(obj.Owner?.Name ?? obj.GetPathName()).SubstringBeforeLast('.') + "." + obj.Name;
 
     /// <summary>Loads a mesh's material slots. Empty slots are skipped; slots that fail to load are reported, not dropped.</summary>
     public static (IReadOnlyList<UMaterialInterface> Materials, IReadOnlyList<string> Failures) GetMeshMaterials(UObject mesh)
