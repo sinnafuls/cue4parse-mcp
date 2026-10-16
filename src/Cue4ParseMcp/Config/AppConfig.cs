@@ -85,6 +85,8 @@ public sealed class AppConfig
             game.PaksDir = ResolvePath(game.PaksDir, baseDir) ?? "";
             game.Mappings = ResolvePath(game.Mappings, baseDir);
             game.OutputDir = ResolvePath(game.OutputDir, baseDir);
+            if (game.DynamicKeys != null)
+                game.DynamicKeys = new Dictionary<string, string>(game.DynamicKeys, StringComparer.OrdinalIgnoreCase);
         }
         config.Games = games;
         return config;

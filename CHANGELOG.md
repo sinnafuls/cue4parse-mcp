@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-10-16
 
+- Automatically hot-reload the selected `games.json` before tool operations. Added games are immediately discoverable; changed mount settings invalidate only affected sessions; removed games cannot be acquired by new calls.
+- Keep the last valid configuration during invalid, locked or temporarily missing saves, including atomic editor replacements. Active leases retain their original provider and export-directory snapshot.
+- Preserve mounted providers for unrelated game additions and output/display-only edits. Discard a stale mount if its profile changes or is removed while it is loading.
+- Initialize the embedded Detex library for native texture decoding. Already-loaded native codec DLLs remain process-global and require a restart to replace.
 - Fixed Windows test cleanup after Detex initialization. Process-global native codecs now use a cache under the test output directory instead of disposable per-pak fixture directories; fixture deletion remains strict.
 
-Verified all nine encrypted-pak regressions and native BC7 decoding of a known-color block. Detex initialization remains enabled.
+Verified all 21 encrypted-pak and configuration reload regressions, including locked saves, main/dynamic key changes, removals during a pending mount, and active-operation lifetime. A single live self-contained MCP process also mounted real Valorant archives, discovered and loaded a newly added game profile, applied a changed archive path/output directory, rejected a removed game, exported valid glTF, and recovered from invalid/missing saves via atomic replacement without a restart. Native BC7 decoding was also verified for the Detex update.
 
 ## 1.0.1 — 2026-10-12
 

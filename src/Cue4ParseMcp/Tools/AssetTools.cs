@@ -12,25 +12,29 @@ public sealed class AssetTools(GameManager games, AssetOps ops)
     private const string OutDirParam = "Folder to write into. Defaults to the game's outputDir from games.json. Files keep the in-game folder structure below it.";
 
     [McpServerTool(Name = "list_games", ReadOnly = true), Description("List configured games and which are currently mounted.")]
-    public object ListGames() => new
+    public object ListGames()
     {
-        configured = games.Config.Games.Select(g => new
+        var state = games.GetState();
+        return new
         {
-            id = g.Key,
-            name = g.Value.DisplayName ?? g.Key,
-            ueVersion = g.Value.UeVersion,
-            paksDir = g.Value.PaksDir,
-        }),
-        loaded = games.LoadedGames,
-        config = games.Config.SourcePath,
-    };
+            configured = state.Config.Games.Select(g => new
+            {
+                id = g.Key,
+                name = g.Value.DisplayName ?? g.Key,
+                ueVersion = g.Value.UeVersion,
+                paksDir = g.Value.PaksDir,
+            }),
+            loaded = state.LoadedGames,
+            config = state.Config.SourcePath,
+        };
+    }
 
     [McpServerTool(Name = "load_game"), Description(
         "Mount a game's paks (AES keys + .usmap mappings from games.json / configured endpoints). " +
         "Takes 5-60s on first load; later tools reuse the mounted game. Other tools auto-load if needed.")]
     public async Task<LoadSummary> LoadGame(
         [Description("Game id from games.json, e.g. valorant or dbd.")] string game,
-        [Description("Re-mount using the startup configuration (e.g. after a game patch). Restart the server after editing games.json.")] bool reload = false,
+        [Description("Re-mount even if already loaded (e.g. after a game patch). games.json changes are picked up automatically before each call.")] bool reload = false,
         CancellationToken ct = default)
     {
         return await games.LoadAsync(game, reload, ct);

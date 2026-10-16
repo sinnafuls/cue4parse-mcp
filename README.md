@@ -48,7 +48,9 @@ Restart the client and call `list_games`. For source builds, other MCP clients, 
 
 Asset tools auto-load their game. Pass `game` explicitly when using multiple games; otherwise the last-loaded game is selected (or the sole configured game). A typed search reads package headers and caps scanning at 20,000 name matches; use `under` and narrower queries when results are truncated.
 
-Configuration is read once when the server starts. `load_game(reload: true)` re-mounts archives and re-fetches configured endpoints, but does not re-read `games.json`. Restart the MCP server after editing keys, paths, or other configuration values.
+The selected `games.json` is hot-reloaded automatically on the next tool call. Added games become available immediately; changed keys, archive paths, engine versions or mappings cause the affected game to re-mount on its next use. Removed games disappear from new calls. Existing operations finish using their original provider and output settings; unrelated games stay mounted. Invalid JSON, incomplete saves that fail parsing, or temporarily missing files keep the last valid configuration and log a warning. `load_game(reload: true)` still forces an archive remount when the file itself has not changed.
+
+No restart is needed for game/profile or export-directory edits. Native codec DLLs already loaded into the process cannot be replaced by configuration reload; restart to replace an already-loaded Oodle/zlib/Detex library.
 
 Formats:
 
@@ -106,8 +108,8 @@ Verify mounting, search, inspection, and exports against your current game build
 Add the version's notes to `CHANGELOG.md`, commit and push the changes to `master`, then create and push a stable version tag:
 
 ```powershell
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 Use a **new** `vMAJOR.MINOR.PATCH` tag for each release; never move a published tag. The release workflow derives the executable's version from the tag, publishes self-contained `win-x64` without trimming/single-file bundling, includes the config template, docs, and license notices, and smoke-checks the extracted ZIP. Only then does it create a GitHub Release with the ZIP and a `.sha256` checksum. Ordinary `master` pushes still produce CI artifacts, not releases.
@@ -115,7 +117,7 @@ Use a **new** `vMAJOR.MINOR.PATCH` tag for each release; never move a published 
 To run identical packaging locally from a source checkout with native build tools installed:
 
 ```powershell
-pwsh -File scripts/Package-Release.ps1 -Version 1.0.1
+pwsh -File scripts/Package-Release.ps1 -Version 1.1.0
 ```
 
 The version must have a changelog section. Output is under `artifacts/releases/`; an existing ZIP is not overwritten.

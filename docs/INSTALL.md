@@ -20,8 +20,8 @@ The ZIP includes the .NET runtime, native animation DLL, safe config template, t
 Optional integrity check: download the matching `.zip.sha256` file and compare its first field with PowerShell's `Get-FileHash` result before extracting. For example, using the downloaded version's filename:
 
 ```powershell
-Get-FileHash ./cue4parse-mcp-1.0.1-windows-x64.zip -Algorithm SHA256
-Get-Content ./cue4parse-mcp-1.0.1-windows-x64.zip.sha256
+Get-FileHash ./cue4parse-mcp-1.1.0-windows-x64.zip -Algorithm SHA256
+Get-Content ./cue4parse-mcp-1.1.0-windows-x64.zip.sha256
 ```
 
 Keep your existing `games.json` and export/cache directories when upgrading. Extract a new version into a separate folder, copy your config, check relative paths, and update the client's executable/config paths. Do not blindly overwrite the template over your config.
@@ -47,7 +47,7 @@ CUE4Parse invokes CMake to build `CUE4Parse-Natives.dll`. A native configure fai
 dotnet publish src/Cue4ParseMcp/Cue4ParseMcp.csproj -c Release -o artifacts/server -p:CUE4PARSE_SKIP_NATIVE=true
 ```
 
-Do not reuse a previous native-enabled publish directory when checking native-free output. Standard solution build: `dotnet build CUE4Parse-MCP.slnx -c Release`. To produce the same self-contained ZIP as the release workflow, use `pwsh -File scripts/Package-Release.ps1 -Version 1.0.1`; native build tools and matching changelog notes are required.
+Do not reuse a previous native-enabled publish directory when checking native-free output. Standard solution build: `dotnet build CUE4Parse-MCP.slnx -c Release`. To produce the same self-contained ZIP as the release workflow, use `pwsh -File scripts/Package-Release.ps1 -Version 1.1.0`; native build tools and matching changelog notes are required.
 
 ## 2. Configure games
 
@@ -103,7 +103,11 @@ Config lookup order:
 
 An explicit missing file is an error; it does not silently fall back. Use an absolute `--config` path for client registration.
 
-The MCP server reads configuration at startup. After editing `games.json` (including adding an AES key), **restart the server/client connection**. `load_game` with `reload: true` re-mounts archives and re-fetches the configured endpoints; it does not re-read the config file. Each new CLI invocation reads the file again.
+The selected config file is checked before each tool operation and changes are loaded automatically. Save `games.json`, then call `list_games` to see newly added games without restarting the client. Changed keys, archive paths, engine versions or mappings retire the affected mounted session; the next asset call loads the updated profile. Removing a game prevents new calls from acquiring it. Unaffected games remain mounted, and in-flight calls keep their original provider and output settings until they finish.
+
+Invalid JSON, incomplete settings that fail config parsing, a file locked during an editor save, or a temporarily missing file retain the last valid configuration; the server logs a warning and tries again on a later call. Atomic editor rename/replace saves are supported. Relative paths still resolve against the same selected config file. `load_game(reload: true)` forces a remount even without a config edit.
+
+Native codecs are process-global. New paths can be used when a codec has not loaded yet, but replacing an already-loaded Oodle/zlib/Detex DLL requires restarting the server.
 
 ### Keys and mappings
 
@@ -183,7 +187,7 @@ Claude Desktop on Windows uses `%APPDATA%/Claude/claude_desktop_config.json`. Ot
 | Mount works, inspect/export fails to deserialize | Obtain matching mappings, then consider updating CUE4Parse for game-specific parsing fixes |
 | ACL/native DLL load failure | For releases, re-extract the full ZIP; for source builds, rebuild with native prerequisites. `CUE4Parse-Natives.dll` must be beside the executable |
 | Download fails/offline setup | Supply existing trusted `oodlePath`, `zlibPath`, `aesKey`, and `mappings`; omit remote endpoints to avoid requests |
-| v1.0.0 lists assets but reading encrypted entries fails in a plain-index pak | Upgrade to v1.0.1 or later. Restart the MCP server after adding/changing an AES key; `reload: true` does not re-read `games.json` |
+| v1.0.0 lists assets but reading encrypted entries fails in a plain-index pak | Upgrade to v1.0.1 or later. Older releases read keys at startup and require a restart after config edits; hot-reload builds pick them up on the next call |
 | Type search is truncated | Narrow the query and use `under`; the type scan is capped |
 | ImageSharp `NU1902` / `NU1903` warnings | Known, retained advisories; read the [dependency security disclosure](../README.md#dependency-security). They are not suppressed, and the patched 4.1.2 release needs a Six Labors license |
 | Client waits when launching executable manually | No command means MCP stdio mode; use `help` or a CLI command instead |

@@ -77,8 +77,7 @@ static async Task<int> RunServerAsync(AppConfig config, LogEventLevel level)
     // Serilog and Microsoft.Extensions.Logging levels share the same numeric order (Verbose/Trace .. Fatal/Critical).
     builder.Logging.SetMinimumLevel((Microsoft.Extensions.Logging.LogLevel)(int)level);
 
-    builder.Services.AddSingleton(config);
-    builder.Services.AddSingleton<GameManager>();
+    builder.Services.AddSingleton(_ => new GameManager(config));
     builder.Services.AddSingleton<AssetOps>();
     builder.Services
         .AddMcpServer(o => o.ServerInfo = new Implementation { Name = Cli.ServerName, Version = Cli.Version })

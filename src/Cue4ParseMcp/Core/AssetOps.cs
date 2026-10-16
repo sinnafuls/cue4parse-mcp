@@ -24,7 +24,7 @@ public sealed class AssetOps(GameManager games)
         if (obj is not (USkinnedAsset or UStaticMesh))
             throw new InvalidOperationException($"{path} is a {obj.ExportType}, not a SkeletalMesh/StaticMesh. Use inspect_asset to find the mesh it references.");
 
-        return await session.ExportAsync([obj], options, games.ResolveOutputDir(session, outDir), ct);
+        return await session.ExportAsync([obj], options, games.ResolveOutputDir(lease, outDir), ct);
     }
 
     public async Task<ExportReport> ExportTexturesAsync(string? game, string path, string format, string? outDir, CancellationToken ct)
@@ -54,7 +54,7 @@ public sealed class AssetOps(GameManager games)
                 ? $"{path} has no loadable materials: {string.Join("; ", materialFailures)}"
                 : $"{path} has no materials.");
 
-        var report = await session.ExportAsync(roots, options, games.ResolveOutputDir(session, outDir), ct);
+        var report = await session.ExportAsync(roots, options, games.ResolveOutputDir(lease, outDir), ct);
         return materialFailures.Count == 0 ? report : report with { Failures = [.. materialFailures, .. report.Failures] };
     }
 
@@ -74,7 +74,7 @@ public sealed class AssetOps(GameManager games)
         if (obj is not UAnimationAsset)
             throw new InvalidOperationException($"{path} is a {obj.ExportType}, not an animation (AnimSequence/AnimMontage/AnimComposite).");
 
-        return await session.ExportAsync([obj], new ExportOptions(meshFormat: meshFormat), games.ResolveOutputDir(session, outDir), ct);
+        return await session.ExportAsync([obj], new ExportOptions(meshFormat: meshFormat), games.ResolveOutputDir(lease, outDir), ct);
     }
 
     public static EMeshFormat ParseMeshFormat(string format) => format.ToLowerInvariant() switch
