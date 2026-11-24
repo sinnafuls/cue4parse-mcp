@@ -53,8 +53,11 @@ static class Cli
           Cue4ParseMcp export-anim <game> <path> [--format psa|ueformat|usd] [--out DIR] [--config PATH]
           Cue4ParseMcp export-json <game> <path> [--out DIR] [--config PATH]
               Write the complete property JSON of a package (all objects) or of one Package.Object to a file.
-          Cue4ParseMcp query-table <game> <path> [--columns A,B] [--filters JSON] [--offset N] [--limit N] [--config PATH]
+          Cue4ParseMcp query-table <game> <path> [--columns A,B] [--filters JSON] [--offset N] [--limit N] [--culture en] [--config PATH]
               Return one page of DataTable rows (default --offset 0 --limit 50; the service accepts limit 1..500).
+              --culture adds a LocalizedString map with the resolved text of FText cells.
+          Cue4ParseMcp localize <game> <key>... [--culture en] [--namespace NS] [--config PATH]
+              Resolve localisation keys (the Key of an FText) to text from the game's .locres files.
           Cue4ParseMcp export-table <game> <path> [--format json|csv] [--columns A,B] [--filters JSON] [--out DIR] [--config PATH]
               Write every matching DataTable row (not just one page) to a file.
           Cue4ParseMcp diagnose <game> [--probe PATH] [--config PATH]
@@ -103,8 +106,9 @@ static class Cli
         ["export-textures"] = new(true, TailKind.Required, "<path>", ["config", "format", "out"]),
         ["export-anim"] = new(true, TailKind.Required, "<path>", ["config", "format", "out"]),
         ["export-json"] = new(true, TailKind.Required, "<path>", ["config", "out"]),
-        ["query-table"] = new(true, TailKind.Required, "<path>", ["config", "columns", "filters", "offset", "limit"]),
+        ["query-table"] = new(true, TailKind.Required, "<path>", ["config", "columns", "filters", "offset", "limit", "culture"]),
         ["export-table"] = new(true, TailKind.Required, "<path>", ["config", "format", "columns", "filters", "out"]),
+        ["localize"] = new(true, TailKind.Required, "<key>...", ["config", "culture", "namespace"]),
         ["diagnose"] = new(true, TailKind.None, "", ["config", "probe"]),
         ["dependencies"] = new(true, TailKind.Required, "<path>", ["config", "depth", "limit"]),
         ["export-audio"] = new(true, TailKind.Required, "<path>", ["config", "mode", "out"]),
@@ -116,7 +120,7 @@ static class Cli
     private static readonly HashSet<string> ValueOptions = new(StringComparer.Ordinal)
     {
         "config", "type", "under", "limit", "format", "lods", "out",
-        "columns", "filters", "offset", "depth", "probe", "mode", "request",
+        "columns", "filters", "offset", "depth", "probe", "mode", "request", "culture", "namespace",
     };
 
     private const int DefaultQueryLimit = 50;
@@ -227,9 +231,11 @@ static class Cli
                 inv.Option("out"), ct),
             "export-json" => await new DataOps(games).ExportJsonAsync(game, inv.Tail!, inv.Option("out"), ct),
             "query-table" => await new DataOps(games).QueryTableAsync(game, inv.Tail!, Columns(inv), Filters(inv),
-                IntOption(inv, "offset", 0), IntOption(inv, "limit", DefaultQueryLimit), ct),
+                IntOption(inv, "offset", 0), IntOption(inv, "limit", DefaultQueryLimit), ct, inv.Option("culture")),
             "export-table" => await new DataOps(games).ExportTableAsync(game, inv.Tail!, inv.Option("format") ?? "json",
                 Columns(inv), Filters(inv), inv.Option("out"), ct),
+            "localize" => await new DataOps(games).LocalizeAsync(game, inv.Tail!.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+                inv.Option("culture") ?? "en", inv.Option("namespace") ?? "", ct),
             "diagnose" => await new DiagnosticsOps(games).DiagnoseAsync(game, inv.Option("probe"), ct),
             "dependencies" => await new DependencyOps(games).GetAsync(game, inv.Tail!,
                 IntOption(inv, "depth", DefaultDependencyDepth), IntOption(inv, "limit", DefaultDependencyLimit), ct),

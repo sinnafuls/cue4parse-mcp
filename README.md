@@ -46,7 +46,8 @@ Restart the client and call `list_games`. For source builds, other MCP clients, 
 | `export_textures(path, format?, outDir?, game?)` | Export a texture, a material's textures, or all textures of a mesh's materials |
 | `export_anim(path, format?, outDir?, game?)` | Export animation sequences, montages, or composites |
 | `export_json(path, outDir?, game?)` | Write the complete, untruncated property JSON of a package or one object to a file |
-| `query_table(path, columns?, filters?, offset?, limit?, game?)` | Return one filtered page (at most 500 rows) of a DataTable |
+| `localize(keys, culture?, namespace?, game?)` | Resolve FText keys to text from the game's `.locres` files (culture defaults to `en`) |
+| `query_table(path, columns?, filters?, offset?, limit?, game?, culture?)` | Return one filtered page (at most 500 rows) of a DataTable; `culture` adds a per-row `localizedString` map for FText cells |
 | `export_table(path, format?, columns?, filters?, outDir?, game?)` | Write every matching DataTable row as `json` (default) or `csv` |
 | `diagnose_game(game?, probe?)` | Sanitized mount, encryption-key, mappings, and codec report; optional single-asset read probe |
 | `get_dependencies(path, depth?, limit?, game?)` | Bounded outgoing package references with source, resolvability, and completeness information |
@@ -140,6 +141,7 @@ One batch runs at a time; at most 8 unfinished jobs and 32 retained jobs exist, 
 .\Cue4ParseMcp.exe export-anim valorant "path/from/search" --format psa --out D:/Exports
 .\Cue4ParseMcp.exe export-json valorant "path/from/search" --out D:/Exports
 .\Cue4ParseMcp.exe query-table valorant "table/from/search" --columns Name,Damage --filters '[{"column":"Damage","op":"gte","value":50}]' --limit 20
+.\Cue4ParseMcp.exe localize valorant 7BABBEFB43128D5C5697B794308629DB --culture en
 .\Cue4ParseMcp.exe export-table valorant "table/from/search" --format csv --columns Name,Damage --out D:/Exports
 .\Cue4ParseMcp.exe diagnose valorant --probe "path/from/search"
 .\Cue4ParseMcp.exe dependencies valorant "path/from/search" --depth 2 --limit 500

@@ -5,6 +5,7 @@ using Cue4ParseMcp.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using Serilog;
 using Serilog.Events;
@@ -88,6 +89,11 @@ static async Task<int> RunServerAsync(AppConfig config, LogEventLevel level)
         .WithTools<AnalysisTools>()
         .WithTools<AudioTools>()
         .WithTools<BatchTools>()
+        .WithMessageFilters(filters => filters.AddIncomingFilter(next => (context, ct) =>
+        {
+            NegotiateInitializeVersion(context.JsonRpcMessage);
+            return next(context, ct);
+        }))
         .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, ct) =>
         {
             try
@@ -110,3 +116,15 @@ static async Task<int> RunServerAsync(AppConfig config, LogEventLevel level)
     return 0;
 }
 
+// The SDK rejects an initialize whose protocolVersion it cannot serve over the handshake (error -32022). That includes
+// 2026-07-28, which dropped initialize, yet some clients still send it there. MCP lifecycle rules say the server answers
+// with the latest version it supports and the client decides, so rewrite an unknown version to that latest one.
+static void NegotiateInitializeVersion(JsonRpcMessage message)
+{
+    // Versions the SDK serves through initialize, oldest first; the last is the answer to an unknown request.
+    string[] handshakeVersions = ["2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25"];
+    if (message is not JsonRpcRequest { Method: RequestMethods.Initialize, Params: JsonObject args }) return;
+    if (args["protocolVersion"] is JsonValue v && v.TryGetValue<string>(out var requested)
+        && Array.IndexOf(handshakeVersions, requested) < 0)
+        args["protocolVersion"] = handshakeVersions[^1];
+}
