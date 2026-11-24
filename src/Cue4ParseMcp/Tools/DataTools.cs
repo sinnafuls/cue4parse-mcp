@@ -11,6 +11,8 @@ public sealed class DataTools(DataOps ops)
     private const string OutDirParam = "Folder to write into. Defaults to the game's outputDir from games.json. Files keep the in-game folder structure below it.";
     private const string TablePathParam = "DataTable asset path as returned by search_assets (type DataTable), e.g. Game/Content/Data/DT_Weapons. 'Pkg.Object' selects one export.";
 
+    private const string CultureParam = "Culture whose .locres strings to use, e.g. en. query_table adds a LocalizedString map (cell path to text) per row when set.";
+
     private const string ColumnsParam =
         "Top-level row columns to include, matched case-insensitively (fixed-array elements are named like 'Prop[1]'). " +
         "Omit for all columns; unknown names are rejected. The row name is always included.";
@@ -31,6 +33,17 @@ public sealed class DataTools(DataOps ops)
         CancellationToken ct = default)
         => ops.ExportJsonAsync(game, path, outDir, ct);
 
+    [McpServerTool(Name = "localize", ReadOnly = true), Description(
+        "Resolve localisation keys to text from the game's .locres files (the Key of an FText property in inspect_asset / query_table output). " +
+        "Returns each key's string, or null when the culture has none. Switches the game's loaded culture.")]
+    public Task<LocalizeResult> Localize(
+        [Description("Text keys, e.g. the 32-hex-digit Key of an FText.")] string[] keys,
+        [Description(CultureParam)] string culture = "en",
+        [Description("Localisation namespace of the keys (FText Namespace); empty for cooked tables.")] string @namespace = "",
+        [Description(GameParam)] string? game = null,
+        CancellationToken ct = default)
+        => ops.LocalizeAsync(game, keys, culture, @namespace, ct);
+
     [McpServerTool(Name = "query_table", ReadOnly = true), Description(
         "Read DataTable rows with optional column projection, filters and paging. Returns rowName plus selected values per row " +
         "(columns a row doesn't serialize are omitted), totalRows, matchedRows, hasMore/nextOffset and the available columns. " +
@@ -42,8 +55,9 @@ public sealed class DataTools(DataOps ops)
         [Description("Matching rows to skip (0 or more).")] int offset = 0,
         [Description("Max rows to return (1-500).")] int limit = 50,
         [Description(GameParam)] string? game = null,
-        CancellationToken ct = default)
-        => ops.QueryTableAsync(game, path, columns, filters, offset, limit, ct);
+        CancellationToken ct = default,
+        [Description(CultureParam)] string? culture = null)
+        => ops.QueryTableAsync(game, path, columns, filters, offset, limit, ct, culture);
 
     [McpServerTool(Name = "export_table"), Description(
         "Write every DataTable row matching the filters to <asset>.table.json or <asset>.table.csv. " +

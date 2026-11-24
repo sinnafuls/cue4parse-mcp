@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using CUE4Parse.FileProvider;
 using CUE4Parse.UE4.Assets;
 using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Assets.Exports.Engine;
@@ -10,7 +11,14 @@ using NJ = Newtonsoft.Json;
 namespace Cue4ParseMcp.Core;
 
 /// <summary>One returned DataTable row. Columns the row does not serialize are omitted from <see cref="Values"/>; a present null stays JSON null.</summary>
-public sealed record TableRow(string RowName, IReadOnlyDictionary<string, JsonElement> Values);
+public sealed record TableRow(string RowName, IReadOnlyDictionary<string, JsonElement> Values)
+{
+    /// <summary>Resolved text of FText cells (cell path such as "Name" or "Items[1].Label" to string); only set when a culture was requested.</summary>
+    public IReadOnlyDictionary<string, string>? LocalizedString { get; init; }
+}
+
+/// <summary>Localisation lookup result. A key with no entry in the culture maps to null.</summary>
+public sealed record LocalizeResult(string Culture, string Namespace, IReadOnlyDictionary<string, string?> Strings);
 
 public sealed record TableQueryResult(
     string Path,
@@ -98,7 +106,7 @@ public sealed class DataOps(GameManager games)
 
     #region DataTables
 
-    public async Task<TableQueryResult> QueryTableAsync(string? game, string path, string[]? columns, TableFilter[]? filters, int offset, int limit, CancellationToken ct)
+    public async Task<TableQueryResult> QueryTableAsync(string? game, string path, string[]? columns, TableFilter[]? filters, int offset, int limit, CancellationToken ct, string? culture = null)
     {
         if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset), offset, "offset must be 0 or greater.");
         if (limit is < 1 or > MaxQueryLimit) throw new ArgumentOutOfRangeException(nameof(limit), limit, $"limit must be between 1 and {MaxQueryLimit}.");
@@ -107,6 +115,7 @@ public sealed class DataOps(GameManager games)
         var (table, tablePath) = LoadTable(lease.Session, path);
         var plan = TablePlan.Create(table, columns, filters);
         var serializer = NJ.JsonSerializer.CreateDefault();
+        var strings = culture is null ? null : SelectCulture(lease.Session, culture);
 
         var rows = new List<TableRow>();
         var matched = 0;
@@ -122,7 +131,13 @@ public sealed class DataOps(GameManager games)
             var lookup = Cells(cells);
             foreach (var column in plan.Selected)
                 if (lookup.TryGetValue(column, out var value)) values[column] = value.Clone();
-            rows.Add(new TableRow(rowName, values));
+            Dictionary<string, string>? localized = null;
+            if (strings is not null)
+            {
+                localized = [];
+                foreach (var (column, value) in values) CollectLocalized(column, value, strings, localized);
+            }
+            rows.Add(new TableRow(rowName, values) { LocalizedString = localized });
         }
 
         var hasMore = offset + rows.Count < matched;
@@ -130,6 +145,60 @@ public sealed class DataOps(GameManager games)
             offset, limit, rows.Count, hasMore, hasMore ? offset + rows.Count : null,
             plan.Available, plan.Selected, rows);
     }
+
+    #endregion
+
+    #region Localisation
+
+    /// <summary>Resolves <paramref name="keys"/> in <paramref name="ns"/> for <paramref name="culture"/> from the game's .locres files.</summary>
+    public async Task<LocalizeResult> LocalizeAsync(string? game, string[] keys, string culture, string ns, CancellationToken ct)
+    {
+        if (keys is not { Length: > 0 }) throw new ArgumentException("keys must name at least one text key.", nameof(keys));
+        using var lease = await games.AcquireAsync(game, ct);
+        var strings = SelectCulture(lease.Session, culture);
+        var result = new Dictionary<string, string?>(keys.Length, StringComparer.Ordinal);
+        foreach (var key in keys)
+            result[key] = strings.TryGetValue(ns, out var space) && space.TryGetValue(key, out var text) && text.Length > 0 ? text : null;
+        return new LocalizeResult(culture, ns, result);
+    }
+
+    /// <summary>Loads the culture's .locres entries into the provider (a provider-wide switch) and returns them.</summary>
+    private static InternationalizationDictionary SelectCulture(GameSession session, string culture)
+    {
+        var i18n = session.Provider.Internationalization;
+        lock (i18n)
+        {
+            if (!string.Equals(i18n.Culture, culture, StringComparison.OrdinalIgnoreCase) && !session.Provider.TryChangeCulture(culture))
+                throw new ArgumentException($"Culture '{culture}' is not available. Available: {string.Join(", ", i18n.AvailableCultures)}");
+            return i18n;
+        }
+    }
+
+    /// <summary>Walks a cell and records the localized string of every FText (an object carrying Namespace, Key and SourceString).</summary>
+    private static void CollectLocalized(string path, JsonElement cell, InternationalizationDictionary strings, Dictionary<string, string> into)
+    {
+        switch (cell.ValueKind)
+        {
+            case JsonValueKind.Object:
+                if (cell.TryGetProperty("Key", out var key) && key.ValueKind == JsonValueKind.String && cell.TryGetProperty("SourceString", out _))
+                {
+                    var ns = cell.TryGetProperty("Namespace", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString()! : "";
+                    var text = strings.SafeGet(ns, key.GetString()!);
+                    if (text.Length > 0) into[path] = text;
+                    return;
+                }
+                foreach (var property in cell.EnumerateObject()) CollectLocalized($"{path}.{property.Name}", property.Value, strings, into);
+                break;
+            case JsonValueKind.Array:
+                var index = 0;
+                foreach (var item in cell.EnumerateArray()) CollectLocalized($"{path}[{index++}]", item, strings, into);
+                break;
+        }
+    }
+
+    #endregion
+
+    #region DataTable export
 
     public async Task<ExportReport> ExportTableAsync(string? game, string path, string format, string[]? columns, TableFilter[]? filters, string? outDir, CancellationToken ct)
     {

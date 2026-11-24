@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fixed the MCP handshake with clients that send `initialize` with `protocolVersion` `2026-07-28`: the SDK answered error -32022 because that revision has no `initialize`. The server now answers an unknown version with `2025-11-25`, its latest handshake version, and lets the client decide. Updated ModelContextProtocol to 2.4.0.
+- Added `localize` / `localize <game> <key>... [--culture en] [--namespace NS]`: resolves FText keys from `.locres` files. `query_table` / `query-table` take an optional `culture` / `--culture` that adds a `localizedString` map (cell path to text) to each row. Default output is unchanged.
+
 ## 1.2.0 — 2026-10-16
 
 - Added `export_json` / `export-json`: complete, untruncated property JSON for a package (every export) or one `Package.Object`, streamed atomically to a file instead of returned inline.
